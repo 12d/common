@@ -19,7 +19,11 @@
 
 H5 模块列表 
 -----------
-
+| Tables        | Are           | Cool  |
+| ------------- |:-------------:| -----:|
+| col 3 is      | right-aligned | $1600 |
+| col 2 is      | centered      |   $12 |
+| zebra stripes | are neat      |    $1 |
 <table>
 <thead><tr>
   <th>模块名</th><th>描述</th>
