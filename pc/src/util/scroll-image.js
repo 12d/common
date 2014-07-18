@@ -1,6 +1,8 @@
 /**
  * Created by li.xx on 14-7-3.
- * @description 首页图片轮播
+ * @description 首页图片轮播, 经测试在IE7+， 谷歌，firefox, 及360 运行正常
+ * 依赖cQuery
+ * 
  */
 ; (function ($, win, undefined) {
     function ScrollImage(options) {
@@ -92,7 +94,7 @@
         _setAlpha: function(index, opacity) {
             var img = this.imglist[index];
             img.style.opacity = opacity / 100;
-            img.style.folter = 'alpha(opacity=' + opacity + ')';
+            img.style.filter = 'alpha(opacity=' + opacity + ')';
         },
 
         mouseoverout: function(dom) {
@@ -143,6 +145,9 @@
         return fragment;
     }
 
+	/*
+	 *  测试代码
+ 	*/
     var imgUrlList = ['http://pic.c-ctrip.com/hotels121118/zzz1920_572_3.jpg',
         'http://pic.c-ctrip.com/hotels121118/zzz1920_572_2.jpg',
         'http://pic.c-ctrip.com/hotels121118/zzz1920_572_1.jpg'];
