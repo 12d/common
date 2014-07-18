@@ -109,6 +109,7 @@
         },
 
         showPrev: function() {
+            clearInterval(self.switchImage);
             this.stopPlay();
             this.prev = this.index;
             this.index--;
@@ -116,6 +117,7 @@
             this.showImage(this.index);
         },
         showNext: function() {
+            clearInterval(self.switchImage);
             this.stopPlay();
             this.prev = this.index;
             this.index++;
