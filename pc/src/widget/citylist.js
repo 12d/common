@@ -30,6 +30,7 @@ define([], function() {
         updateCityDom: function($city) {
             this.city = $($city);
             this.initCity();
+            this.setCity({name: this.city.value(), id: this.city.attr('data-id')});
         },
         initCity: function() {
             $.mod.load('address', '1.0', function() {});
@@ -68,6 +69,9 @@ define([], function() {
             });
 
             self._lastCityData = EMPTY_CITY;
+        },
+        setCity: function(obj) {
+            this._lastCityData = obj;
         },
         getCity: function () {
             return this._lastCityData;
