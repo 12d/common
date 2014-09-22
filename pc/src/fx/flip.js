@@ -10,11 +10,9 @@
 	var NULL = null,
 		EMPTY = '',
 		NOOP = function(){},
-		mix = $.extend,
-		isCSS3Effect = true,
-		Flip;
+		mix = $.extend;
 
-	function Flip(){
+	function Flip(options){
 		this.options = {
 			/**
 			 * @cfg {CDOM} 正面dom元素
@@ -35,15 +33,34 @@
 			/**
 			 * @cfg {int} 正反面状态，0：正面 1：反面
 			 */
-			status: 0
+			status: 0,
+            startFlipStyle: {
+                //transition: '-webkit-transform 200ms none 100ms',
+                transform: 'rotateY(90deg)',
+                'transition-duration': '1000ms',
+                'transition-property': '-webkit-transform',
+                'transition-timing-function': 'ease-in',
+                'transition-delay': '0ms'
+            },
+            halfFlipStyle: {
+               // transition: 'all 200ms easeout 100ms',
+                transform: 'rotateY(180deg)',
+                'transition-duration': '1000ms',
+                'transition-property': '-webkit-transform',
+                'transition-timing-function': 'ease-out',
+                'transition-delay': '100ms'
+            }
 		};
 		//init 方法中提供的属性是当前实例方法
-		this.initialize.call(this, options);
+		this.initialize.call(this, mix(this.options, options));
 	};
 
 	function prepareContainer(dom){
+        var offset = dom.offset();
+
 		dom.css3({
-			perspective: dom
+			//perspective: Math.max(offset.width, offset.height),
+            'perspective-origin': '50% 50%'
 		});
 	};
 
@@ -52,8 +69,10 @@
 		initialize: function(options){
 			var triggerEvents = options.triggerEvents;
 
-			this.container = options.container;
+			this.container = options.container || options.positive.parentNode();
+            prepareContainer(this.container);
 			this._bindEvents();
+            this._listenAnimation();
 			this._isInteractive = triggerEvents && triggerEvents.length;
 
 		},
@@ -64,7 +83,7 @@
 			var self = this,
 				options = self.options;
 
-			options.negative.addClass(options.flipOutCls);
+			self._startFlipHandler();
 
 		},
 		_bindEvents: function(){
@@ -78,6 +97,7 @@
 					self.container.bind(event, self.__flipHandler);
 				});
 			};
+
 		},
 		_unbindEvents: function(){
 			var self = this,
@@ -89,19 +109,43 @@
 					self.container.unbind(event, self.__flipHandler);
 				});
 			};
+		},
+        _startFlipHandler: function(){
+            var self = this,
+                options = self.options,
+                startFlipStyle = options.startFlipStyle;
+
+            options.positive.css3(startFlipStyle);
+            options.negative.css3(startFlipStyle);
+            self.__onHalfTime = self._halfTimeHandler.bind(self);
+            options.negative.bind('webkitTransitionEnd', self.__onHalfTime);
+        },
+        _halfTimeHandler: function(){
+            var options = this.options,
+                positive = options.positive,
+                negative = options.negative,
+                halfFlipStyle = options.halfFlipStyle;
 
 
-		}
+
+            positive.css3(halfFlipStyle);
+            negative.css3(halfFlipStyle).css('zIndex', 9999);
+        },
+        _listenAnimation: function(){
+            var self = this,
+                options = self.options;
+
+
+
+        }
 	};
 
-	exports.flip = function(dom, options){
-		Flip.flip(dom, options);
-	};
+	exports.Flip = Flip;
 	$.fn.flip = function(options){
 		Flip.flip(options);
 	};
-})(cQuery, cQuery.BizMod.Effect);
-
+})(cQuery, window);
+/*
 ( function( $ ) {
 
 	var FALSE = false,
@@ -404,3 +448,4 @@
 	};
 
 })( jQuery );
+    */
