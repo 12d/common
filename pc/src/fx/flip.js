@@ -3,14 +3,36 @@
  * @date: 2014/9/22 15:51
  * @descriptions cQuery plugin to create a flipping effect
  * @version 0.1
- * @requires cquery.js (tested with v 1.3.2)
- * FOR USAGE INSTRUCTIONS SEE THE DOCUMENATION AT: http://dev.jonraasch.com/quickflip/docs
+ * @requires cquery.js
  */
 ;(function ($, exports){
-	var NULL = null,
+	var browser = $.browser,
+		mix = $.extend,
+//		isCSS3Supported = browser.isChrome || browser.isFirefox || browser.isIE10 || browser.isIE11 || browser.isIPad || false,
+		isCSS3Supported = true,
+		NULL = null,
 		EMPTY = '',
 		NOOP = function(){},
-		mix = $.extend;
+		MAX_INDEX = 9999,
+		CSS3_PREFIX = (function () {
+			var prefix = '';
+
+			prefix = browser.isChrome || $.browser.isSafari ? '-webkit-' :
+				browser.isFirefox ? '-moz-' :
+					(browser.isIE10) ? '-ms-' :
+						'';
+			return prefix;
+
+		})(),
+		JSCSS3_PREFIX = CSS3_PREFIX.replace(/\-/g, '')
+		TRANSITION_END = (function(){
+			var prefix;
+			prefix = browser.isChrome || $.browser.isSafari ? 'webkit' :
+				browser.isFirefox ? 'Moz' :
+					(browser.isIE10) ? 'MS' :
+						'';
+			return prefix ? prefix+'TransitionEnd' : 'transitionend';
+		})();
 
 	function Flip(options){
 		this.options = {
@@ -30,38 +52,12 @@
 			 * @cfg {Array} 触发翻转的事件, 例如['mouseenter', 'click']
 			 */
 			triggerEvents: NULL,
-			/**
-			 * @cfg {int} 正反面状态，0：正面 1：反面
-			 */
-			status: 0,
-            startFlipStyle: {
-                //transition: '-webkit-transform 200ms none 100ms',
-                transform: 'rotateY(90deg)',
-                'transition-duration': '1000ms',
-                'transition-property': '-webkit-transform',
-                'transition-timing-function': 'ease-in',
-                'transition-delay': '0ms'
-            },
-            halfFlipStyle: {
-               // transition: 'all 200ms easeout 100ms',
-                transform: 'rotateY(180deg)',
-                'transition-duration': '1000ms',
-                'transition-property': '-webkit-transform',
-                'transition-timing-function': 'ease-out',
-                'transition-delay': '100ms'
-            }
+			loop: 1,
+			angle: 0,
+			flipAngle: 90
 		};
 		//init 方法中提供的属性是当前实例方法
 		this.initialize.call(this, mix(this.options, options));
-	};
-
-	function prepareContainer(dom){
-        var offset = dom.offset();
-
-		dom.css3({
-			//perspective: Math.max(offset.width, offset.height),
-            'perspective-origin': '50% 50%'
-		});
 	};
 
 	Flip.prototype = {
@@ -69,12 +65,14 @@
 		initialize: function(options){
 			var triggerEvents = options.triggerEvents;
 
+			this.isFlipping = false;
+			this.status = 0;
 			this.container = options.container || options.positive.parentNode();
-            prepareContainer(this.container);
-			this._bindEvents();
-            this._listenAnimation();
+			this.angle = options.angle;
+            isCSS3Supported && this._prepare(this.container);
 			this._isInteractive = triggerEvents && triggerEvents.length;
-
+			this.loop = options.loop;
+			this._bindEvents();
 		},
 		destroy: function(){
 			this._unbindEvents();
@@ -83,8 +81,59 @@
 			var self = this,
 				options = self.options;
 
-			self._startFlipHandler();
+			if(self.isFlipping) return;
 
+
+			//如果循环次数用完，切执行了flip，默认加一次
+			!self.loop && (self.loop=1);
+			self._flipAction();
+
+		},
+		_getAngles: function(){
+			var angle = this.angle;
+
+			return {
+				positive: 'rotateY('+angle+'deg)',
+				negative: 'rotateY('+(angle-180)+'deg)'
+			}
+		},
+		_getTransitions: function(){
+			return {
+				'in': CSS3_PREFIX+'transform 300ms ease-in 0ms',
+				'out': CSS3_PREFIX+'transform 300ms ease-out 0ms'
+			}
+		},
+		_prepare: function(){
+			var self = this,
+				options = self.options,
+				container = self.container,
+				angles = self._getAngles(),
+				offset = container.offset();
+			//初始化容器视角
+			container.css3({
+				perspective: Math.max(offset.width, offset.height),
+				'perspective-origin': '60% 60%'
+			});
+//			self._flipAction(true);
+			options.negative.css3({
+				transform: angles.negative
+			});
+			setTimeout(function(){
+				self.__setTransition(true);
+			},0);
+
+		},
+		__setTransition: function(isIn){
+			var self = this,
+				options = self.options,
+				transition = self._getTransitions()[isIn ? 'in' : 'out'];
+
+			options.negative.css3({
+				'transition': transition
+			});
+			options.positive.css3({
+				'transition': transition
+			});
 		},
 		_bindEvents: function(){
 			var self = this,
@@ -97,6 +146,9 @@
 					self.container.bind(event, self.__flipHandler);
 				});
 			};
+			//绑定动画事件
+			self.__onTransitionEnd = self._transitionEndHandler.bind(self);
+			options.negative.bind(TRANSITION_END, self.__onTransitionEnd);
 
 		},
 		_unbindEvents: function(){
@@ -110,34 +162,93 @@
 				});
 			};
 		},
-        _startFlipHandler: function(){
+		_flipInfo: function(){
+			var self = this,
+				options = self.options,
+				val = (self.angle/options.flipAngle) % 4,
+				obj = {
+					turnIn: val === 0 || val === 1
+				};
+			console.log(self.angle);
+			obj.zIndex = isCSS3Supported ? obj.turnIn : (val === 3 || val === 1);
+
+			return obj;
+		},
+        _flipAction: function(turnIn){
             var self = this,
                 options = self.options,
-                startFlipStyle = options.startFlipStyle;
+                angles,
+	            positive = options.positive,
+	            negative = options.negative,
+	            isPositive = self.isPositive(),
+	            flipInfo = self._flipInfo(),
+	            needChangeZIndex = flipInfo.zIndex,
+	            isTurnIn;
 
-            options.positive.css3(startFlipStyle);
-            options.negative.css3(startFlipStyle);
-            self.__onHalfTime = self._halfTimeHandler.bind(self);
-            options.negative.bind('webkitTransitionEnd', self.__onHalfTime);
+	        self.angle += options.flipAngle;
+	        self.isFlipping = true;
+	        angles = self._getAngles();
+	        isTurnIn = turnIn || flipInfo.turnIn;
+			if(isCSS3Supported){
+
+	            positive.css3({
+					transform: angles.positive
+	            });
+	            negative.css3({
+		            transform: angles.negative
+	            });
+			}else{
+				self._fakeTransform(isTurnIn);
+			};
+
+
+	        /*设置层级*/
+	        positive.css({
+		        'z-index': needChangeZIndex ? MAX_INDEX : EMPTY
+	        });
+	        negative.css({
+		        'z-index': needChangeZIndex ? EMPTY : MAX_INDEX
+	        });
+
+
         },
-        _halfTimeHandler: function(){
+		_fakeTransform: function(isTurnIn){
+			var self = this,
+				isPositive = self.isPositive(),
+				options = self.options;
+
+			$.mod.load('animate', '1.0', function () {
+				options.positive.animate({
+					left: (isTurnIn ? 50 : 0) + "px",
+					width: (isTurnIn ? 0 : 100) + "px"
+				}, {
+					duration: 300,
+					easing: "swing",
+					always: function(){
+						self.__onTransitionEnd();
+					}
+				});
+				options.negative.animate({
+					left: (isTurnIn ? 50 : 0) + "px",
+					width: (isTurnIn ? 0 : 100) + "px"
+				}, {duration: 300, easing: "swing"});
+			});
+		},
+        _transitionEndHandler: function(){
             var options = this.options,
                 positive = options.positive,
-                negative = options.negative,
-                halfFlipStyle = options.halfFlipStyle;
+                negative = options.negative;
 
-
-
-            positive.css3(halfFlipStyle);
-            negative.css3(halfFlipStyle).css('zIndex', 9999);
+	        this.isFlipping = false;
+	        if(this.loop>0){
+		        this._flipAction();
+		        this.loop--;
+	        };
+	        this.status &= 1;
         },
-        _listenAnimation: function(){
-            var self = this,
-                options = self.options;
-
-
-
-        }
+		isPositive: function(){
+			return (this.angle / 180) % 2 === 0;
+		}
 	};
 
 	exports.Flip = Flip;
