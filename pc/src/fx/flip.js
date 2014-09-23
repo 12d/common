@@ -8,12 +8,12 @@
 ;(function ($, exports){
 	var browser = $.browser,
 		mix = $.extend,
-//		isCSS3Supported = browser.isChrome || browser.isFirefox || browser.isIE10 || browser.isIE11 || browser.isIPad || false,
-		isCSS3Supported = true,
+		isCSS3Supported = browser.isChrome || browser.isFirefox || browser.isIE10 || browser.isIE11 || browser.isIPad || false,
+//		isCSS3Supported = false,
 		NULL = null,
 		EMPTY = '',
 		NOOP = function(){},
-		MAX_INDEX = 9999,
+		MAX_INDEX = 2,
 		CSS3_PREFIX = (function () {
 			var prefix = '';
 
@@ -28,7 +28,6 @@
 		TRANSITION_END = (function(){
 			var prefix;
 			prefix = browser.isChrome || $.browser.isSafari ? 'webkit' :
-				browser.isFirefox ? 'Moz' :
 					(browser.isIE10) ? 'MS' :
 						'';
 			return prefix ? prefix+'TransitionEnd' : 'transitionend';
@@ -52,6 +51,7 @@
 			 * @cfg {Array} 触发翻转的事件, 例如['mouseenter', 'click']
 			 */
 			triggerEvents: NULL,
+            duration: 300,
 			loop: 1,
 			angle: 0,
 			flipAngle: 90
@@ -68,6 +68,7 @@
 			this.isFlipping = false;
 			this.status = 0;
 			this.container = options.container || options.positive.parentNode();
+            this._runtime = this._getRuntime();
 			this.angle = options.angle;
             isCSS3Supported && this._prepare(this.container);
 			this._isInteractive = triggerEvents && triggerEvents.length;
@@ -89,6 +90,14 @@
 			self._flipAction();
 
 		},
+        _getRuntime: function(){
+            var offset = this.container.offset();
+
+            return {
+                width: offset.width,
+                height: offset.height
+            }
+        },
 		_getAngles: function(){
 			var angle = this.angle;
 
@@ -98,9 +107,11 @@
 			}
 		},
 		_getTransitions: function(){
+            var duration = this.options.duration;
+
 			return {
-				'in': CSS3_PREFIX+'transform 300ms ease-in 0ms',
-				'out': CSS3_PREFIX+'transform 300ms ease-out 0ms'
+				'in': CSS3_PREFIX+'transform '+duration+'ms ease-in 0ms',
+				'out': CSS3_PREFIX+'transform '+duration+'ms ease-out 0ms'
 			}
 		},
 		_prepare: function(){
@@ -108,11 +119,12 @@
 				options = self.options,
 				container = self.container,
 				angles = self._getAngles(),
-				offset = container.offset();
+				runtime = self._runtime;
 			//初始化容器视角
 			container.css3({
-				perspective: Math.max(offset.width, offset.height),
-				'perspective-origin': '60% 60%'
+				perspective: Math.max(runtime.width, runtime.height)+'px',
+                //perspective: '150px',
+                'perspective-origin': '60% 60%'
 			});
 //			self._flipAction(true);
 			options.negative.css3({
@@ -146,8 +158,10 @@
 					self.container.bind(event, self.__flipHandler);
 				});
 			};
+
 			//绑定动画事件
 			self.__onTransitionEnd = self._transitionEndHandler.bind(self);
+
 			options.negative.bind(TRANSITION_END, self.__onTransitionEnd);
 
 		},
@@ -167,10 +181,11 @@
 				options = self.options,
 				val = (self.angle/options.flipAngle) % 4,
 				obj = {
-					turnIn: val === 0 || val === 1
+					turnIn: isCSS3Supported ? (val === 0 || val === 3) : (val === 0 || val === 2)
 				};
-			console.log(self.angle);
-			obj.zIndex = isCSS3Supported ? obj.turnIn : (val === 3 || val === 1);
+
+            console.log(val);
+			obj.zIndex = isCSS3Supported ? obj.turnIn : (val === 0 || val === 3);
 
 			return obj;
 		},
@@ -190,48 +205,50 @@
 	        angles = self._getAngles();
 	        isTurnIn = turnIn || flipInfo.turnIn;
 			if(isCSS3Supported){
+                console.log(flipInfo);
 
-	            positive.css3({
+                positive.css3({
 					transform: angles.positive
 	            });
+
 	            negative.css3({
 		            transform: angles.negative
 	            });
+
 			}else{
 				self._fakeTransform(isTurnIn);
+                positive.css({
+                    'z-index': needChangeZIndex ? MAX_INDEX : EMPTY
+                });
+
+                negative.css({
+                    'z-index': needChangeZIndex ? EMPTY : MAX_INDEX
+                });
 			};
-
-
-	        /*设置层级*/
-	        positive.css({
-		        'z-index': needChangeZIndex ? MAX_INDEX : EMPTY
-	        });
-	        negative.css({
-		        'z-index': needChangeZIndex ? EMPTY : MAX_INDEX
-	        });
-
 
         },
 		_fakeTransform: function(isTurnIn){
 			var self = this,
 				isPositive = self.isPositive(),
+                runtime = self._runtime,
+                width = runtime.width,
 				options = self.options;
 
 			$.mod.load('animate', '1.0', function () {
 				options.positive.animate({
-					left: (isTurnIn ? 50 : 0) + "px",
-					width: (isTurnIn ? 0 : 100) + "px"
+					left: (isTurnIn ? width/2 : 0) + "px",
+					width: (isTurnIn ? 0 : width) + "px"
 				}, {
-					duration: 300,
+					duration: options.duration,
 					easing: "swing",
 					always: function(){
 						self.__onTransitionEnd();
 					}
 				});
 				options.negative.animate({
-					left: (isTurnIn ? 50 : 0) + "px",
-					width: (isTurnIn ? 0 : 100) + "px"
-				}, {duration: 300, easing: "swing"});
+					left: (isTurnIn ? width/2 : 0) + "px",
+					width: (isTurnIn ? 0 : width) + "px"
+				}, {duration: options.duration, easing: "swing"});
 			});
 		},
         _transitionEndHandler: function(){
@@ -240,6 +257,7 @@
                 negative = options.negative;
 
 	        this.isFlipping = false;
+
 	        if(this.loop>0){
 		        this._flipAction();
 		        this.loop--;

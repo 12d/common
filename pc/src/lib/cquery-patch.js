@@ -13,7 +13,7 @@
 //动态方法
 (function ($, fn, undefined) {
 	var methods = {},
-		cssPrefix = ['-webkit-', '-moz-', '-ms-', ''];
+		cssPrefix = ['', '-webkit-', '-moz-', '-ms-'];
 
 	methods.show = function (option) {
 		this.each(function (item) {

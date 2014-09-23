@@ -13,6 +13,11 @@
             background: dimgray;
             /*-webkit-transform: rotateY(0deg);*/
             color: white;
+           transform: translateX(0);
+           -webkit-backface-visibility:hidden;
+           -moz-backface-visibility:hidden;
+           -ms-backface-visibility:hidden;
+
         }
 
         #J_positive
@@ -22,16 +27,22 @@
             position: absolute;
             border: 1px solid black;
             background-color: white;
+            transform: translateX(0);
+            -webkit-backface-visibility:hidden;
+            -moz-backface-visibility:hidden;
+            -ms-backface-visibility:hidden;
             /*-webkit-transform: rotateY(0deg);*/
         }
-        .stage{height: 100px; width: 100px; }
+        .stage{height: 100px; width: 100px;position: relative; }
         .stage div{overflow: hidden; overflow: hidden}
     </style>
 </head>
 <body>
 <div class="stage" id="J_3d">
-    <div id="J_negative">back end</div>
 
+    <div id="J_negative">
+        back end
+    </div>
     <div id="J_positive">
         front end
     </div>
@@ -41,6 +52,7 @@
 <script src="/hotel-common/pc/src/lib/cquery-patch.js"></script>
 <script src="/hotel-common/pc/src/fx/flip.js"></script>
 <script>
+
     var ff = new Flip({
         positive: $('#J_positive'),
         negative: $('#J_negative'),
